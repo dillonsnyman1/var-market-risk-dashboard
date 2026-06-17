@@ -10,7 +10,7 @@ backtesting and Monte Carlo path simulation.
 - **Frontend**: React + Vite + TypeScript dashboard (VaR surface, return
   distribution, Monte Carlo paths, backtesting)
 
-> **Live demo**: *Coming soon — will be deployed to CloudFront after Phase 3.*
+> **Live demo**: *Coming soon — will be deployed to CloudFront once infrastructure is in place.*
 >
 > The backend is fully stateless: all VaR computation is done in-request
 > with no database or storage of any kind.
@@ -146,6 +146,38 @@ where p = 1 - confidence (expected breach probability), p̂ = x/n (observed),
 x = breach count, n = total observations. Under H₀ (model is correctly
 calibrated), LR ~ χ²(1). A low p-value indicates the model is producing too
 many or too few breaches.
+
+---
+
+## Roadmap
+
+This project is being built incrementally in three phases:
+
+### Phase 1: Reference implementations *(in progress)*
+
+Standalone, side-by-side implementations of the core VaR algorithms in
+Python, C++, R, MATLAB and SAS — each idiomatic to its language, all
+validated against the same shared fixture data. No web framework or
+frontend. See [`reference/`](reference/).
+
+### Phase 2: Full-stack local demo
+
+FastAPI backend exposing the VaR engine as an API, with a React + Vite +
+TypeScript dashboard for interactive exploration. Supports both live
+ticker data (via Yahoo Finance) and user-uploaded CSV files. Runs locally
+with no cloud dependencies.
+
+### Phase 3: AWS deployment
+
+Terraform infrastructure (Lambda, API Gateway, S3, CloudFront) and a
+GitHub Actions CI/CD pipeline — same architecture as the other projects
+in this portfolio. Deployed automatically on every push to `main`.
+
+### Future: Multi-asset portfolio expansion
+
+Portfolio VaR with correlation modelling, component/marginal VaR
+decomposition, diversification benefit analysis, stress testing, and
+conditional volatility (GARCH). Tracked in [EXTENSIONS.md](EXTENSIONS.md).
 
 ---
 

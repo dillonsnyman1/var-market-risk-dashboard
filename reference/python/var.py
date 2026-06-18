@@ -102,7 +102,77 @@ def cvar_parametric(
 # ---------------------------------------------------------------------------
 # Monte Carlo Simulation
 # ---------------------------------------------------------------------------
-# TODO: var_monte_carlo, cvar_monte_carlo, simulate_gbm_paths
+
+def simulate_gbm_paths(
+    S0: float,
+    mu: float,
+    sigma: float,
+    holding_period: int,
+    n_simulations: int = 10_000,
+    n_steps: int | None = None,
+    seed: int = 42,
+) -> np.ndarray:
+    """Simulate price paths via Geometric Brownian Motion.
+
+    S_t = S_0 * exp((mu - sigma^2/2)*t + sigma*sqrt(t)*Z)
+
+    Returns a 2D array of shape (n_simulations, n_steps + 1) where
+    column 0 is S0 and the final column is the terminal price.
+    If n_steps is None it defaults to holding_period (one step per day).
+    """
+    if n_steps is None:
+        n_steps = holding_period
+    dt = holding_period / n_steps
+    rng = np.random.default_rng(seed)
+    Z = rng.standard_normal((n_simulations, n_steps))
+    drift = (mu - 0.5 * sigma**2) * dt
+    diffusion = sigma * np.sqrt(dt) * Z
+    log_increments = drift + diffusion
+    log_path = np.concatenate(
+        [np.zeros((n_simulations, 1)), np.cumsum(log_increments, axis=1)],
+        axis=1,
+    )
+    return S0 * np.exp(log_path)
+
+
+def var_monte_carlo(
+    returns: np.ndarray,
+    confidence: float = 0.95,
+    holding_period: int = 1,
+    n_simulations: int = 10_000,
+    seed: int = 42,
+) -> dict:
+    """VaR and CVaR from Monte Carlo simulation of GBM paths.
+
+    Estimates mu and sigma from the historical return series, simulates
+    n_simulations price paths over the holding period, and computes VaR
+    and CVaR from the distribution of simulated returns.
+
+    Returns a dict with keys: var, cvar, simulated_returns.
+    """
+    r = np.asarray(returns, dtype=float)
+    mu = r.mean()
+    sigma = r.std(ddof=1)
+
+    paths = simulate_gbm_paths(
+        S0=1.0,
+        mu=mu,
+        sigma=sigma,
+        holding_period=holding_period,
+        n_simulations=n_simulations,
+        seed=seed,
+    )
+    simulated_returns = np.log(paths[:, -1] / paths[:, 0])
+
+    var = float(-np.percentile(simulated_returns, (1 - confidence) * 100))
+    tail = simulated_returns[simulated_returns <= -var]
+    cvar = float(-tail.mean()) if len(tail) > 0 else var
+
+    return {
+        "var": var,
+        "cvar": cvar,
+        "simulated_returns": simulated_returns,
+    }
 
 
 # ---------------------------------------------------------------------------

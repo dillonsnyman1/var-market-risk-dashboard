@@ -1,8 +1,7 @@
 """Tests for the VaR reference implementation.
 
-Covers the methods implemented so far (Historical Simulation and
-Variance-Covariance). Tests for Monte Carlo and backtesting will be
-added as those functions are implemented.
+Covers Historical Simulation, Variance-Covariance, and Monte Carlo.
+Tests for backtesting will be added as those functions are implemented.
 """
 
 from __future__ import annotations
@@ -19,6 +18,8 @@ from var import (
     cvar_historical,
     var_parametric,
     cvar_parametric,
+    simulate_gbm_paths,
+    var_monte_carlo,
 )
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "..", "fixtures")
@@ -131,3 +132,65 @@ class TestParametricCvar:
             v = var_parametric(sample_returns, confidence=conf)
             cv = cvar_parametric(sample_returns, confidence=conf)
             assert cv >= v, f"CVaR ({cv}) < VaR ({v}) at {conf}"
+
+
+# ---------------------------------------------------------------------------
+# Monte Carlo Simulation
+# ---------------------------------------------------------------------------
+
+class TestSimulateGbmPaths:
+    def test_shape(self):
+        paths = simulate_gbm_paths(S0=100.0, mu=0.0, sigma=0.2, holding_period=10, n_simulations=500)
+        assert paths.shape == (500, 11)
+
+    def test_starts_at_s0(self):
+        paths = simulate_gbm_paths(S0=42.0, mu=0.05, sigma=0.15, holding_period=5, n_simulations=100)
+        np.testing.assert_allclose(paths[:, 0], 42.0)
+
+    def test_seed_reproducibility(self):
+        p1 = simulate_gbm_paths(S0=100.0, mu=0.0, sigma=0.2, holding_period=10, seed=7)
+        p2 = simulate_gbm_paths(S0=100.0, mu=0.0, sigma=0.2, holding_period=10, seed=7)
+        np.testing.assert_array_equal(p1, p2)
+
+    def test_all_positive(self):
+        paths = simulate_gbm_paths(S0=100.0, mu=-0.1, sigma=0.5, holding_period=20, n_simulations=1000)
+        assert np.all(paths > 0)
+
+    def test_custom_steps(self):
+        paths = simulate_gbm_paths(S0=100.0, mu=0.0, sigma=0.2, holding_period=5, n_simulations=100, n_steps=25)
+        assert paths.shape == (100, 26)
+
+
+class TestMonteCarloVar:
+    def test_positive(self, sample_returns):
+        result = var_monte_carlo(sample_returns)
+        assert result["var"] > 0
+
+    def test_cvar_geq_var(self, sample_returns):
+        result = var_monte_carlo(sample_returns, confidence=0.95)
+        assert result["cvar"] >= result["var"]
+
+    def test_seed_reproducibility(self, sample_returns):
+        r1 = var_monte_carlo(sample_returns, seed=123)
+        r2 = var_monte_carlo(sample_returns, seed=123)
+        assert r1["var"] == r2["var"]
+        assert r1["cvar"] == r2["cvar"]
+
+    def test_simulated_returns_length(self, sample_returns):
+        n = 5_000
+        result = var_monte_carlo(sample_returns, n_simulations=n)
+        assert len(result["simulated_returns"]) == n
+
+    def test_converges_to_parametric(self):
+        """With large n_sims on normal data, MC VaR should approximate parametric."""
+        rng = np.random.default_rng(99)
+        r = rng.normal(0, 0.02, 10_000)
+        mc = var_monte_carlo(r, confidence=0.95, n_simulations=200_000, seed=42)
+        param = var_parametric(r, confidence=0.95)
+        assert mc["var"] == pytest.approx(param, rel=0.05)
+
+    def test_higher_confidence_higher_var(self, sample_returns):
+        v90 = var_monte_carlo(sample_returns, confidence=0.90)["var"]
+        v95 = var_monte_carlo(sample_returns, confidence=0.95)["var"]
+        v99 = var_monte_carlo(sample_returns, confidence=0.99)["var"]
+        assert v90 < v95 < v99

@@ -11,12 +11,10 @@ numpy + pandas. See [`var.py`](var.py) for the implementation and the
 - `cvar_historical` — Historical Simulation CVaR (Expected Shortfall)
 - `var_parametric` — Variance-Covariance VaR (normal assumption)
 - `cvar_parametric` — Variance-Covariance CVaR
+- `simulate_gbm_paths` — GBM price path simulation
+- `var_monte_carlo` — Monte Carlo VaR and CVaR via GBM simulation
 
 **Still to do:**
-- `var_monte_carlo` / `cvar_monte_carlo` — Monte Carlo VaR via GBM
-  simulation
-- `simulate_gbm_paths` — generate simulated price paths for
-  visualisation
 - `backtest_var` — rolling-window backtesting with breach counting
 - `kupiec_test` — Kupiec proportion-of-failures test
 - `compute_var_surface` — all methods x confidences x holding periods

@@ -178,7 +178,80 @@ def var_monte_carlo(
 # ---------------------------------------------------------------------------
 # Backtesting
 # ---------------------------------------------------------------------------
-# TODO: backtest_var, kupiec_test
+
+def kupiec_test(n_observations: int, n_breaches: int, confidence: float) -> float:
+    """Kupiec proportion-of-failures (POF) likelihood-ratio test.
+
+    Tests whether the observed breach rate is consistent with the expected
+    rate (1 - confidence). Under H0 (model is correctly calibrated) the
+    test statistic follows chi-squared(1).
+
+    Returns the p-value.
+    """
+    p = 1 - confidence
+    p_hat = n_breaches / n_observations if n_observations > 0 else 0.0
+    n = n_observations
+    x = n_breaches
+
+    if x == 0 or x == n:
+        # Edge case: log(0) — return p=1 (cannot reject)
+        return 1.0
+
+    lr = -2 * (
+        x * np.log(p / p_hat) + (n - x) * np.log((1 - p) / (1 - p_hat))
+    )
+    from scipy.stats import chi2
+    return float(1 - chi2.cdf(lr, df=1))
+
+
+def backtest_var(
+    returns: np.ndarray,
+    confidence: float = 0.95,
+    window: int = 250,
+    method: str = "historical",
+) -> pd.DataFrame:
+    """Rolling-window VaR backtest.
+
+    At each date t (starting from index `window`), VaR is estimated from
+    the trailing `window` observations and compared against the actual
+    return at t. A breach occurs when the actual loss exceeds the
+    predicted VaR.
+
+    Returns a DataFrame with columns: actual_return, var_prediction,
+    breach. Also attaches summary attributes: breach_count, breach_rate,
+    expected_breach_rate, kupiec_p_value.
+    """
+    r = np.asarray(returns, dtype=float)
+    var_fn = {
+        "historical": var_historical,
+        "parametric": var_parametric,
+    }
+    if method not in var_fn:
+        raise ValueError(f"Unknown method '{method}'. Use 'historical' or 'parametric'.")
+
+    records = []
+    for t in range(window, len(r)):
+        trailing = r[t - window : t]
+        predicted_var = var_fn[method](trailing, confidence=confidence)
+        actual = r[t]
+        breach = actual < -predicted_var
+        records.append({
+            "date_index": t,
+            "actual_return": float(actual),
+            "var_prediction": float(-predicted_var),
+            "breach": bool(breach),
+        })
+
+    df = pd.DataFrame(records)
+    n = len(df)
+    n_breaches = int(df["breach"].sum())
+
+    df.attrs["breach_count"] = n_breaches
+    df.attrs["breach_rate"] = n_breaches / n if n > 0 else 0.0
+    df.attrs["expected_breach_rate"] = 1 - confidence
+    df.attrs["kupiec_p_value"] = kupiec_test(n, n_breaches, confidence)
+
+    return df
 
 
 # ---------------------------------------------------------------------------

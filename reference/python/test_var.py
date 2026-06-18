@@ -1,7 +1,7 @@
 """Tests for the VaR reference implementation.
 
-Covers Historical Simulation, Variance-Covariance, and Monte Carlo.
-Tests for backtesting will be added as those functions are implemented.
+Covers Historical Simulation, Variance-Covariance, Monte Carlo, and
+backtesting with the Kupiec proportion-of-failures test.
 """
 
 from __future__ import annotations
@@ -20,6 +20,8 @@ from var import (
     cvar_parametric,
     simulate_gbm_paths,
     var_monte_carlo,
+    kupiec_test,
+    backtest_var,
 )
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "..", "fixtures")
@@ -194,3 +196,63 @@ class TestMonteCarloVar:
         v95 = var_monte_carlo(sample_returns, confidence=0.95)["var"]
         v99 = var_monte_carlo(sample_returns, confidence=0.99)["var"]
         assert v90 < v95 < v99
+
+
+# ---------------------------------------------------------------------------
+# Backtesting
+# ---------------------------------------------------------------------------
+
+class TestKupiecTest:
+    def test_well_calibrated(self):
+        """A model with the expected breach rate should not be rejected."""
+        p_value = kupiec_test(n_observations=1000, n_breaches=50, confidence=0.95)
+        assert p_value > 0.05
+
+    def test_too_many_breaches(self):
+        """A model with far too many breaches should be rejected."""
+        p_value = kupiec_test(n_observations=1000, n_breaches=120, confidence=0.95)
+        assert p_value < 0.05
+
+    def test_edge_zero_breaches(self):
+        p_value = kupiec_test(n_observations=1000, n_breaches=0, confidence=0.95)
+        assert p_value == 1.0
+
+    def test_edge_all_breaches(self):
+        p_value = kupiec_test(n_observations=100, n_breaches=100, confidence=0.95)
+        assert p_value == 1.0
+
+
+class TestBacktestVar:
+    def test_output_shape(self, sample_returns):
+        df = backtest_var(sample_returns, window=250)
+        assert len(df) == len(sample_returns) - 250
+        assert set(df.columns) == {"date_index", "actual_return", "var_prediction", "breach"}
+
+    def test_breach_count_within_bounds(self, sample_returns):
+        df = backtest_var(sample_returns, confidence=0.95, window=250)
+        assert 0 <= df.attrs["breach_count"] <= len(df)
+
+    def test_breach_rate_reasonable(self, sample_returns):
+        """Breach rate should be in a plausible range for well-behaved data."""
+        df = backtest_var(sample_returns, confidence=0.95, window=250)
+        assert 0.0 < df.attrs["breach_rate"] < 0.20
+
+    def test_expected_breach_rate(self, sample_returns):
+        df = backtest_var(sample_returns, confidence=0.95)
+        assert df.attrs["expected_breach_rate"] == pytest.approx(0.05)
+
+    def test_kupiec_attached(self, sample_returns):
+        df = backtest_var(sample_returns, confidence=0.95)
+        assert 0.0 <= df.attrs["kupiec_p_value"] <= 1.0
+
+    def test_historical_method(self, sample_returns):
+        df = backtest_var(sample_returns, method="historical")
+        assert len(df) > 0
+
+    def test_parametric_method(self, sample_returns):
+        df = backtest_var(sample_returns, method="parametric")
+        assert len(df) > 0
+
+    def test_invalid_method(self, sample_returns):
+        with pytest.raises(ValueError, match="Unknown method"):
+            backtest_var(sample_returns, method="invalid")

@@ -257,4 +257,41 @@ def backtest_var(
 # ---------------------------------------------------------------------------
 # Surface / convenience
 # ---------------------------------------------------------------------------
-# TODO: compute_var_surface — all methods x confidences x holding periods
+
+def compute_var_surface(
+    returns: np.ndarray,
+    confidences: list[float] | None = None,
+    holding_periods: list[int] | None = None,
+    n_simulations: int = 100_000,
+    seed: int = 42,
+) -> pd.DataFrame:
+    """Compute VaR and CVaR for all methods across confidence/horizon combos.
+
+    Returns a DataFrame with columns: confidence, holding_period,
+    var_historical, cvar_historical, var_parametric, cvar_parametric,
+    var_monte_carlo, cvar_monte_carlo.
+    """
+    if confidences is None:
+        confidences = [0.90, 0.95, 0.99]
+    if holding_periods is None:
+        holding_periods = [1, 5, 10]
+
+    r = np.asarray(returns, dtype=float)
+    rows = []
+
+    for conf in confidences:
+        for hp in holding_periods:
+            mc = var_monte_carlo(r, confidence=conf, holding_period=hp,
+                                n_simulations=n_simulations, seed=seed)
+            rows.append({
+                "confidence": conf,
+                "holding_period": hp,
+                "var_historical": var_historical(r, conf, hp),
+                "cvar_historical": cvar_historical(r, conf, hp),
+                "var_parametric": var_parametric(r, conf, hp),
+                "cvar_parametric": cvar_parametric(r, conf, hp),
+                "var_monte_carlo": mc["var"],
+                "cvar_monte_carlo": mc["cvar"],
+            })
+
+    return pd.DataFrame(rows)

@@ -22,6 +22,7 @@ from var import (
     var_monte_carlo,
     kupiec_test,
     backtest_var,
+    compute_var_surface,
 )
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "..", "fixtures")
@@ -256,3 +257,94 @@ class TestBacktestVar:
     def test_invalid_method(self, sample_returns):
         with pytest.raises(ValueError, match="Unknown method"):
             backtest_var(sample_returns, method="invalid")
+
+
+# ---------------------------------------------------------------------------
+# VaR Surface
+# ---------------------------------------------------------------------------
+
+class TestVarSurface:
+    def test_shape(self, sample_returns):
+        df = compute_var_surface(sample_returns)
+        assert len(df) == 9  # 3 confidences x 3 holding periods
+
+    def test_columns(self, sample_returns):
+        df = compute_var_surface(sample_returns)
+        expected_cols = {
+            "confidence", "holding_period",
+            "var_historical", "cvar_historical",
+            "var_parametric", "cvar_parametric",
+            "var_monte_carlo", "cvar_monte_carlo",
+        }
+        assert set(df.columns) == expected_cols
+
+    def test_all_positive(self, sample_returns):
+        df = compute_var_surface(sample_returns)
+        value_cols = [c for c in df.columns if c.startswith("var_") or c.startswith("cvar_")]
+        for col in value_cols:
+            assert (df[col] > 0).all(), f"{col} contains non-positive values"
+
+    def test_cvar_geq_var(self, sample_returns):
+        df = compute_var_surface(sample_returns)
+        for method in ["historical", "parametric", "monte_carlo"]:
+            assert (df[f"cvar_{method}"] >= df[f"var_{method}"]).all()
+
+    def test_monotonic_in_confidence(self, sample_returns):
+        df = compute_var_surface(sample_returns)
+        for hp in [1, 5, 10]:
+            subset = df[df["holding_period"] == hp].sort_values("confidence")
+            for method in ["historical", "parametric", "monte_carlo"]:
+                vals = subset[f"var_{method}"].values
+                assert all(vals[i] < vals[i + 1] for i in range(len(vals) - 1))
+
+    def test_monotonic_in_holding_period(self, sample_returns):
+        df = compute_var_surface(sample_returns)
+        for conf in [0.90, 0.95, 0.99]:
+            subset = df[df["confidence"] == conf].sort_values("holding_period")
+            for method in ["historical", "parametric", "monte_carlo"]:
+                vals = subset[f"var_{method}"].values
+                assert all(vals[i] < vals[i + 1] for i in range(len(vals) - 1))
+
+    def test_custom_params(self, sample_returns):
+        df = compute_var_surface(sample_returns, confidences=[0.95], holding_periods=[1, 5])
+        assert len(df) == 2
+
+
+# ---------------------------------------------------------------------------
+# Fixture validation
+# ---------------------------------------------------------------------------
+
+class TestFixtureValidation:
+    """Validate that the implementation reproduces the expected fixture outputs."""
+
+    def test_historical_fixture(self, sample_returns):
+        expected = pd.read_csv(os.path.join(FIXTURES, "expected_historical.csv"))
+        for _, row in expected.iterrows():
+            v = var_historical(sample_returns, row["confidence"], int(row["holding_period"]))
+            cv = cvar_historical(sample_returns, row["confidence"], int(row["holding_period"]))
+            assert v == pytest.approx(row["var"], rel=1e-6), \
+                f"Historical VaR mismatch at conf={row['confidence']}, hp={row['holding_period']}"
+            assert cv == pytest.approx(row["cvar"], rel=1e-6), \
+                f"Historical CVaR mismatch at conf={row['confidence']}, hp={row['holding_period']}"
+
+    def test_parametric_fixture(self, sample_returns):
+        expected = pd.read_csv(os.path.join(FIXTURES, "expected_parametric.csv"))
+        for _, row in expected.iterrows():
+            v = var_parametric(sample_returns, row["confidence"], int(row["holding_period"]))
+            cv = cvar_parametric(sample_returns, row["confidence"], int(row["holding_period"]))
+            assert v == pytest.approx(row["var"], rel=1e-6), \
+                f"Parametric VaR mismatch at conf={row['confidence']}, hp={row['holding_period']}"
+            assert cv == pytest.approx(row["cvar"], rel=1e-6), \
+                f"Parametric CVaR mismatch at conf={row['confidence']}, hp={row['holding_period']}"
+
+    def test_monte_carlo_fixture(self, sample_returns):
+        expected = pd.read_csv(os.path.join(FIXTURES, "expected_monte_carlo.csv"))
+        for _, row in expected.iterrows():
+            mc = var_monte_carlo(
+                sample_returns, row["confidence"], int(row["holding_period"]),
+                n_simulations=100_000, seed=42,
+            )
+            assert mc["var"] == pytest.approx(row["var"], rel=1e-6), \
+                f"MC VaR mismatch at conf={row['confidence']}, hp={row['holding_period']}"
+            assert mc["cvar"] == pytest.approx(row["cvar"], rel=1e-6), \
+                f"MC CVaR mismatch at conf={row['confidence']}, hp={row['holding_period']}"

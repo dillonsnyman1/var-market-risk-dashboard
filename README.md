@@ -10,7 +10,7 @@ backtesting and Monte Carlo path simulation.
 - **Frontend**: React + Vite + TypeScript dashboard (VaR surface, return
   distribution, Monte Carlo paths, backtesting)
 
-> **Live demo**: *Coming soon - will be deployed to CloudFront once infrastructure is in place.*
+> **Live demo**: *Coming soon - AWS deployment (Phase 3) is up next.*
 >
 > The backend is fully stateless: all VaR computation is done in-request
 > with no database or storage of any kind.
@@ -160,14 +160,15 @@ Python, C++, R, MATLAB and SAS - each idiomatic to its language, all
 validated against the same shared fixture data. No web framework or
 frontend. See [`reference/`](reference/).
 
-### Phase 2: Full-stack local demo *(up next)*
+### Phase 2: Full-stack local demo *(complete)*
 
 FastAPI backend exposing the VaR engine as an API, with a React + Vite +
 TypeScript dashboard for interactive exploration. Supports both live
 ticker data (via Yahoo Finance) and user-uploaded CSV files. Runs locally
-with no cloud dependencies.
+with no cloud dependencies. See [`backend/`](backend/) and
+[`frontend/`](frontend/).
 
-### Phase 3: AWS deployment
+### Phase 3: AWS deployment *(up next)*
 
 Terraform infrastructure (Lambda, API Gateway, S3, CloudFront) and a
 GitHub Actions CI/CD pipeline - same architecture as the other projects

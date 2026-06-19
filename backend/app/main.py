@@ -41,7 +41,7 @@ app.add_middleware(
 
 @app.post("/api/ticker", response_model=TickerResponse)
 async def fetch_ticker(req: TickerRequest) -> TickerResponse:
-    import yfinance as yf
+    import yfinance as yf  # lazy - heavy import, only needed for this endpoint
 
     tk = yf.Ticker(req.ticker)
     hist = tk.history(period=req.period)
@@ -75,9 +75,10 @@ async def upload_csv(file: UploadFile) -> TickerResponse:
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Could not read CSV: {exc}")
 
+    # case-insensitive column lookup
     col_lower = {c.lower(): c for c in df.columns}
 
-    # Try to find a returns column first
+    # prefer a returns column if present, otherwise compute from prices
     for name in ["return", "log_return", "returns", "log_returns"]:
         if name in col_lower:
             returns = df[col_lower[name]].dropna().values
@@ -88,7 +89,7 @@ async def upload_csv(file: UploadFile) -> TickerResponse:
                 prices=[],
             )
 
-    # Otherwise look for a price column and compute returns
+    # no returns column found - try prices instead
     for name in ["close", "adj_close", "adj close", "price", "prices"]:
         if name in col_lower:
             prices = df[col_lower[name]].dropna().values

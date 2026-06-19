@@ -1,8 +1,21 @@
 # Extensions
 
-Planned enhancements and future development directions. The current
-implementation covers single-asset VaR - the items below extend it to
-portfolio-level risk and richer dynamics.
+Planned enhancements and future development directions.
+
+## What's built so far
+
+- **Phase 1 (complete)**: Reference implementations of all three VaR
+  methods in Python, C++, R, MATLAB and SAS, validated against shared
+  fixture data.
+- **Phase 2 (complete)**: Full-stack local demo - FastAPI backend with
+  ticker/CSV data ingestion, VaR surface computation, backtesting, and
+  Monte Carlo path simulation. React + Vite + TypeScript frontend with
+  summary cards, tabbed charts, and interactive data source selection.
+- **Phase 3 (up next)**: AWS deployment - Terraform, Lambda, CloudFront,
+  GitHub Actions CI/CD.
+
+The current implementation covers single-asset VaR. The items below
+extend it to portfolio-level risk and richer dynamics.
 
 ---
 

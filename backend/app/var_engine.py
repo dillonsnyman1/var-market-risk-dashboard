@@ -1,4 +1,5 @@
-"""VaR calculation engine - wraps the reference algorithms for the API layer."""
+"""VaR calculation engine. Same maths as reference/python/var.py but
+structured for the API layer (returns dicts/tuples instead of DataFrames)."""
 
 from __future__ import annotations
 
@@ -11,6 +12,8 @@ from scipy.stats import norm, chi2
 # ---------------------------------------------------------------------------
 
 def compute_return_stats(returns: np.ndarray) -> dict:
+    """Descriptive stats for the return series. Kurtosis here is the raw
+    (non-excess) fourth moment ratio - normal data gives ~3.0."""
     n = len(returns)
     mu = returns.mean()
     sigma = returns.std(ddof=1)
@@ -30,6 +33,8 @@ def compute_return_stats(returns: np.ndarray) -> dict:
 
 
 def compute_return_distribution(returns: np.ndarray, n_bins: int = 50) -> dict:
+    """Histogram of returns with a fitted normal overlay. The PDF values are
+    scaled to match the histogram counts so they can be plotted together."""
     counts, bin_edges = np.histogram(returns, bins=n_bins)
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
     bin_width = bin_edges[1] - bin_edges[0]
@@ -160,7 +165,8 @@ def simulate_paths(
         [np.zeros((n_simulations, 1)), np.cumsum(log_increments, axis=1)],
         axis=1,
     )
-    paths = np.exp(log_path)  # normalised, starting at 1.0
+    # normalised paths starting at 1.0 - frontend plots these directly
+    paths = np.exp(log_path)
 
     terminal_returns = log_path[:, -1]
     var_95 = float(-np.percentile(terminal_returns, 5))

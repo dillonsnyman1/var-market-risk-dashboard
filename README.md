@@ -153,14 +153,14 @@ many or too few breaches.
 
 This project is being built incrementally in three phases:
 
-### Phase 1: Reference implementations *(in progress)*
+### Phase 1: Reference implementations *(complete)*
 
 Standalone, side-by-side implementations of the core VaR algorithms in
 Python, C++, R, MATLAB and SAS - each idiomatic to its language, all
 validated against the same shared fixture data. No web framework or
 frontend. See [`reference/`](reference/).
 
-### Phase 2: Full-stack local demo
+### Phase 2: Full-stack local demo *(up next)*
 
 FastAPI backend exposing the VaR engine as an API, with a React + Vite +
 TypeScript dashboard for interactive exploration. Supports both live

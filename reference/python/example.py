@@ -1,11 +1,6 @@
 """
-Usage demo for the VaR reference implementation.
-
-Loads the shared fixture data and prints VaR/CVaR across all methods,
-confidence levels, and holding periods, followed by a backtest summary.
-
-Run:
-    python example.py
+Quick demo - loads the fixture data, prints the full VaR surface and
+a backtest summary. Run: python example.py
 """
 
 from __future__ import annotations

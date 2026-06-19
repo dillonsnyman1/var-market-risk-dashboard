@@ -1,7 +1,7 @@
 # Extensions
 
 Planned enhancements and future development directions. The current
-implementation covers single-asset VaR — the items below extend it to
+implementation covers single-asset VaR - the items below extend it to
 portfolio-level risk and richer dynamics.
 
 ---
@@ -26,13 +26,13 @@ VaR/CVaR are computed as before.
 
 ### Decomposition
 
-- **Component VaR**: wᵢ × ∂VaR/∂wᵢ — each asset's contribution to total
+- **Component VaR**: wᵢ × ∂VaR/∂wᵢ - each asset's contribution to total
   VaR. Component VaRs sum to total portfolio VaR.
-- **Marginal VaR**: ∂VaR/∂wᵢ — sensitivity of portfolio VaR to a small
+- **Marginal VaR**: ∂VaR/∂wᵢ - sensitivity of portfolio VaR to a small
   increase in weight i.
 - **Incremental VaR**: VaR(portfolio with asset i) − VaR(portfolio without
-  asset i) — the discrete impact of adding or removing an asset.
-- **Diversification benefit**: Σᵢ VaRᵢ − VaR_portfolio — the risk reduction
+  asset i) - the discrete impact of adding or removing an asset.
+- **Diversification benefit**: Σᵢ VaRᵢ − VaR_portfolio - the risk reduction
   from correlation being less than 1.
 
 ### Visualisations
@@ -78,7 +78,7 @@ of GARCH where ω = 0 and α + β = 1, controlled by a single decay factor λ
 
 Julia and Java would be useful additions to the `reference/` folder:
 
-- **Julia**: increasingly common in quant research — fast, expressive, good
+- **Julia**: increasingly common in quant research - fast, expressive, good
   numerical libraries.
 - **Java/Kotlin**: still the dominant language in bank risk systems and
   trade capture platforms.

@@ -1,11 +1,8 @@
 """
-Value at Risk (VaR) and Expected Shortfall (CVaR) reference implementation.
+Reference implementation of VaR and Expected Shortfall (CVaR).
 
-Implements three VaR estimation methods — Historical Simulation,
-Variance-Covariance (Parametric), and Monte Carlo — plus rolling-window
-backtesting with the Kupiec proportion-of-failures test.
-
-Dependencies: numpy, pandas.
+Three methods side-by-side - Historical Simulation, Variance-Covariance,
+Monte Carlo - with rolling-window backtesting and the Kupiec POF test.
 """
 
 from __future__ import annotations
@@ -33,10 +30,11 @@ def var_historical(
     confidence: float = 0.95,
     holding_period: int = 1,
 ) -> float:
-    """VaR via the empirical percentile of observed returns.
+    """Sort the returns, read off the percentile. Simple and assumption-free,
+    but only as good as the history you feed it.
 
-    Multi-day VaR is scaled from the one-day figure using the
-    square-root-of-time rule (assumes i.i.d. returns).
+    Multi-day scaling uses the sqrt(t) rule, which assumes i.i.d. returns -
+    not great over long horizons, but standard practice.
     """
     r = np.asarray(returns, dtype=float)
     var_1d = -np.percentile(r, (1 - confidence) * 100)
@@ -48,7 +46,7 @@ def cvar_historical(
     confidence: float = 0.95,
     holding_period: int = 1,
 ) -> float:
-    """Expected Shortfall (CVaR) — mean of returns beyond the VaR threshold."""
+    """Average loss in the tail beyond VaR. Always >= VaR."""
     r = np.asarray(returns, dtype=float)
     threshold = np.percentile(r, (1 - confidence) * 100)
     tail = r[r <= threshold]
@@ -65,13 +63,11 @@ def var_parametric(
     confidence: float = 0.95,
     holding_period: int = 1,
 ) -> float:
-    """VaR under the normal distribution assumption.
+    """Closed-form VaR assuming returns ~ N(mu, sigma^2).
 
-    VaR = -(mu * h - z_alpha * sigma * sqrt(h))
-
-    The normality assumption underestimates tail risk when returns exhibit
-    fat tails (excess kurtosis) or negative skew, which is typical for
-    equity returns.
+    Fast and transparent, but the normal assumption systematically
+    underestimates tail risk - real equity returns have fat tails and
+    negative skew that this ignores.
     """
     r = np.asarray(returns, dtype=float)
     mu = r.mean()
@@ -85,11 +81,8 @@ def cvar_parametric(
     confidence: float = 0.95,
     holding_period: int = 1,
 ) -> float:
-    """CVaR under the normal distribution assumption.
-
-    CVaR = -(mu * h - sigma * sqrt(h) * phi(z_alpha) / (1 - alpha))
-
-    where phi is the standard normal PDF and z_alpha = Phi^{-1}(alpha).
+    """Analytical CVaR under normality. Uses the standard result:
+    CVaR = -(mu*h - sigma*sqrt(h) * phi(z_alpha) / (1 - alpha)).
     """
     r = np.asarray(returns, dtype=float)
     mu = r.mean()
@@ -112,13 +105,8 @@ def simulate_gbm_paths(
     n_steps: int | None = None,
     seed: int = 42,
 ) -> np.ndarray:
-    """Simulate price paths via Geometric Brownian Motion.
-
-    S_t = S_0 * exp((mu - sigma^2/2)*t + sigma*sqrt(t)*Z)
-
-    Returns a 2D array of shape (n_simulations, n_steps + 1) where
-    column 0 is S0 and the final column is the terminal price.
-    If n_steps is None it defaults to holding_period (one step per day).
+    """Generate GBM price paths. Returns array of shape (n_simulations, n_steps + 1)
+    where column 0 is S0. Defaults to one step per day if n_steps is omitted.
     """
     if n_steps is None:
         n_steps = holding_period
@@ -142,13 +130,11 @@ def var_monte_carlo(
     n_simulations: int = 10_000,
     seed: int = 42,
 ) -> dict:
-    """VaR and CVaR from Monte Carlo simulation of GBM paths.
+    """Estimate mu/sigma from the historical series, simulate GBM paths,
+    then read VaR and CVaR off the simulated distribution.
 
-    Estimates mu and sigma from the historical return series, simulates
-    n_simulations price paths over the holding period, and computes VaR
-    and CVaR from the distribution of simulated returns.
-
-    Returns a dict with keys: var, cvar, simulated_returns.
+    Returns dict with var, cvar, and the raw simulated_returns array
+    (useful for plotting terminal distributions).
     """
     r = np.asarray(returns, dtype=float)
     mu = r.mean()
@@ -180,13 +166,11 @@ def var_monte_carlo(
 # ---------------------------------------------------------------------------
 
 def kupiec_test(n_observations: int, n_breaches: int, confidence: float) -> float:
-    """Kupiec proportion-of-failures (POF) likelihood-ratio test.
+    """Kupiec POF test - checks whether the observed breach count is
+    consistent with the expected rate (1 - confidence).
 
-    Tests whether the observed breach rate is consistent with the expected
-    rate (1 - confidence). Under H0 (model is correctly calibrated) the
-    test statistic follows chi-squared(1).
-
-    Returns the p-value.
+    LR statistic is chi-squared(1) under H0. Returns the p-value;
+    low p-value means the model is producing too many or too few breaches.
     """
     p = 1 - confidence
     p_hat = n_breaches / n_observations if n_observations > 0 else 0.0
@@ -194,8 +178,7 @@ def kupiec_test(n_observations: int, n_breaches: int, confidence: float) -> floa
     x = n_breaches
 
     if x == 0 or x == n:
-        # Edge case: log(0) — return p=1 (cannot reject)
-        return 1.0
+        return 1.0  # can't take log(0), and we can't reject anyway
 
     lr = -2 * (
         x * np.log(p / p_hat) + (n - x) * np.log((1 - p) / (1 - p_hat))
@@ -210,16 +193,11 @@ def backtest_var(
     window: int = 250,
     method: str = "historical",
 ) -> pd.DataFrame:
-    """Rolling-window VaR backtest.
+    """Walk forward through the series: at each step, estimate VaR from
+    the trailing window and check if the next-day return breaches it.
 
-    At each date t (starting from index `window`), VaR is estimated from
-    the trailing `window` observations and compared against the actual
-    return at t. A breach occurs when the actual loss exceeds the
-    predicted VaR.
-
-    Returns a DataFrame with columns: actual_return, var_prediction,
-    breach. Also attaches summary attributes: breach_count, breach_rate,
-    expected_breach_rate, kupiec_p_value.
+    Returns a DataFrame of predictions vs actuals. Summary stats
+    (breach_count, breach_rate, kupiec_p_value) are in df.attrs.
     """
     r = np.asarray(returns, dtype=float)
     var_fn = {
@@ -265,11 +243,8 @@ def compute_var_surface(
     n_simulations: int = 100_000,
     seed: int = 42,
 ) -> pd.DataFrame:
-    """Compute VaR and CVaR for all methods across confidence/horizon combos.
-
-    Returns a DataFrame with columns: confidence, holding_period,
-    var_historical, cvar_historical, var_parametric, cvar_parametric,
-    var_monte_carlo, cvar_monte_carlo.
+    """Run all three methods across every confidence/horizon combination.
+    Returns a tidy DataFrame - one row per (confidence, holding_period) pair.
     """
     if confidences is None:
         confidences = [0.90, 0.95, 0.99]

@@ -10,7 +10,7 @@ backtesting and Monte Carlo path simulation.
 - **Frontend**: React + Vite + TypeScript dashboard (VaR surface, return
   distribution, Monte Carlo paths, backtesting)
 
-> **Live demo**: *Coming soon — will be deployed to CloudFront once infrastructure is in place.*
+> **Live demo**: *Coming soon - will be deployed to CloudFront once infrastructure is in place.*
 >
 > The backend is fully stateless: all VaR computation is done in-request
 > with no database or storage of any kind.
@@ -31,8 +31,8 @@ trading days, the portfolio loss will not exceed 2.3%.
 VaR is the standard market risk metric used by banks, asset managers and
 regulators. Basel II/III require banks to hold capital against market risk
 based on VaR (and more recently, Expected Shortfall). Despite its
-limitations — it says nothing about the size of losses beyond the threshold,
-and its accuracy depends entirely on the assumptions you feed it — VaR
+limitations - it says nothing about the size of losses beyond the threshold,
+and its accuracy depends entirely on the assumptions you feed it - VaR
 remains the starting point for any market risk conversation.
 
 Expected Shortfall (ES), also called Conditional VaR (CVaR), addresses the
@@ -53,19 +53,19 @@ Three approaches are compared here:
 - **Variance-Covariance (Parametric)** assumes returns are normally
   distributed and computes VaR analytically from the estimated mean and
   standard deviation. Fast and transparent, but the normal assumption
-  underestimates tail risk — real return distributions exhibit fat tails
+  underestimates tail risk - real return distributions exhibit fat tails
   (excess kurtosis) and negative skew.
 
 - **Monte Carlo Simulation** estimates return parameters from historical
   data and simulates thousands of possible future paths using Geometric
   Brownian Motion (GBM). More flexible than the parametric approach (you
-  can swap in any dynamics — stochastic vol, jumps, mean reversion) at the
+  can swap in any dynamics - stochastic vol, jumps, mean reversion) at the
   cost of computational time and sampling noise.
 
 The backtesting module validates each VaR model against realised returns:
 at each point in time, it computes VaR using a trailing window and checks
 whether the next-day loss exceeded the prediction. If the breach rate is
-significantly higher than expected, the model is miscalibrated — the Kupiec
+significantly higher than expected, the model is miscalibrated - the Kupiec
 proportion-of-failures (POF) test formalises this as a likelihood ratio
 statistic.
 
@@ -83,8 +83,8 @@ CVaR(α) = -Mean(returns where return ≤ -VaR)
 ```
 
 For multi-day VaR, the one-day figure is scaled by √h (the square-root-of-
-time rule), which assumes i.i.d. returns. This is a simplification — returns
-exhibit serial correlation, volatility clustering, and other dependencies —
+time rule), which assumes i.i.d. returns. This is a simplification - returns
+exhibit serial correlation, volatility clustering, and other dependencies -
 but it is the standard industry approximation and avoids the need to
 estimate multi-day return distributions directly.
 
@@ -156,7 +156,7 @@ This project is being built incrementally in three phases:
 ### Phase 1: Reference implementations *(in progress)*
 
 Standalone, side-by-side implementations of the core VaR algorithms in
-Python, C++, R, MATLAB and SAS — each idiomatic to its language, all
+Python, C++, R, MATLAB and SAS - each idiomatic to its language, all
 validated against the same shared fixture data. No web framework or
 frontend. See [`reference/`](reference/).
 
@@ -170,7 +170,7 @@ with no cloud dependencies.
 ### Phase 3: AWS deployment
 
 Terraform infrastructure (Lambda, API Gateway, S3, CloudFront) and a
-GitHub Actions CI/CD pipeline — same architecture as the other projects
+GitHub Actions CI/CD pipeline - same architecture as the other projects
 in this portfolio. Deployed automatically on every push to `main`.
 
 ### Future: Multi-asset portfolio expansion
@@ -189,7 +189,7 @@ conditional volatility (GARCH). Tracked in [EXTENSIONS.md](EXTENSIONS.md).
 
 - **Single asset only.** The current implementation computes VaR for a
   single return series. Portfolio VaR requires modelling the correlation
-  structure across multiple assets — see the extensions doc for the planned
+  structure across multiple assets - see the extensions doc for the planned
   multi-asset expansion.
 
 - **Constant volatility.** All three methods estimate a single σ from
@@ -198,8 +198,8 @@ conditional volatility (GARCH). Tracked in [EXTENSIONS.md](EXTENSIONS.md).
   responsive vol estimates.
 
 - **Normal GBM dynamics.** The Monte Carlo engine assumes geometric Brownian
-  motion with constant drift and vol. Richer dynamics — stochastic
-  volatility (Heston), jump-diffusion (Merton), regime switching — would
+  motion with constant drift and vol. Richer dynamics - stochastic
+  volatility (Heston), jump-diffusion (Merton), regime switching - would
   produce more realistic tail behaviour.
 
 - **Square-root-of-time scaling.** Multi-day VaR is derived from one-day
@@ -236,7 +236,7 @@ pytest
 ## Reference implementations
 
 [`reference/`](reference/) contains standalone implementations of the core
-VaR algorithms in Python, C++, R, MATLAB and SAS — each idiomatic to its
+VaR algorithms in Python, C++, R, MATLAB and SAS - each idiomatic to its
 language. The Python implementation uses numpy and pandas; all others are
 dependency-free. The same fixture files in
 [`reference/fixtures/`](reference/fixtures/) are used to validate all

@@ -40,15 +40,15 @@ returns = log_returns(prices)
 # Or load the fixture data directly
 returns = pd.read_csv("../fixtures/sample_returns.csv")["return"].values
 
-# Historical Simulation — 95% confidence, 1-day horizon
+# Historical Simulation - 95% confidence, 1-day horizon
 var_hist = var_historical(returns, confidence=0.95, holding_period=1)
 cvar_hist = cvar_historical(returns, confidence=0.95, holding_period=1)
 
-# Parametric (Variance-Covariance) — 99% confidence, 10-day horizon
+# Parametric (Variance-Covariance) - 99% confidence, 10-day horizon
 var_param = var_parametric(returns, confidence=0.99, holding_period=10)
 cvar_param = cvar_parametric(returns, confidence=0.99, holding_period=10)
 
-# Monte Carlo — 95% confidence, 5-day horizon
+# Monte Carlo - 95% confidence, 5-day horizon
 mc = var_monte_carlo(returns, confidence=0.95, holding_period=5,
                      n_simulations=100_000, seed=42)
 print(mc["var"], mc["cvar"])

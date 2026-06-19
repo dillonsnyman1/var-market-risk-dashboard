@@ -1,8 +1,4 @@
-"""Tests for the VaR reference implementation.
-
-Covers Historical Simulation, Variance-Covariance, Monte Carlo, and
-backtesting with the Kupiec proportion-of-failures test.
-"""
+"""Tests for the VaR reference implementation."""
 
 from __future__ import annotations
 
@@ -118,7 +114,7 @@ class TestParametricVar:
         assert v1 < v5 < v10
 
     def test_known_normal(self):
-        """For N(0, sigma) returns, parametric VaR should be z_alpha * sigma."""
+        """Sanity check: for zero-mean normal data, VaR should be z * sigma."""
         rng = np.random.default_rng(99)
         r = rng.normal(0, 0.02, 100_000)
         v = var_parametric(r, confidence=0.95, holding_period=1)
@@ -185,7 +181,7 @@ class TestMonteCarloVar:
         assert len(result["simulated_returns"]) == n
 
     def test_converges_to_parametric(self):
-        """With large n_sims on normal data, MC VaR should approximate parametric."""
+        """MC should land close to parametric when the data is actually normal."""
         rng = np.random.default_rng(99)
         r = rng.normal(0, 0.02, 10_000)
         mc = var_monte_carlo(r, confidence=0.95, n_simulations=200_000, seed=42)
@@ -205,12 +201,12 @@ class TestMonteCarloVar:
 
 class TestKupiecTest:
     def test_well_calibrated(self):
-        """A model with the expected breach rate should not be rejected."""
+        """50 breaches out of 1000 at 95% - should not reject."""
         p_value = kupiec_test(n_observations=1000, n_breaches=50, confidence=0.95)
         assert p_value > 0.05
 
     def test_too_many_breaches(self):
-        """A model with far too many breaches should be rejected."""
+        """120 breaches out of 1000 at 95% - clearly miscalibrated."""
         p_value = kupiec_test(n_observations=1000, n_breaches=120, confidence=0.95)
         assert p_value < 0.05
 
@@ -234,7 +230,7 @@ class TestBacktestVar:
         assert 0 <= df.attrs["breach_count"] <= len(df)
 
     def test_breach_rate_reasonable(self, sample_returns):
-        """Breach rate should be in a plausible range for well-behaved data."""
+        """Synthetic data is well-behaved, so breach rate shouldn't be wild."""
         df = backtest_var(sample_returns, confidence=0.95, window=250)
         assert 0.0 < df.attrs["breach_rate"] < 0.20
 
@@ -315,7 +311,7 @@ class TestVarSurface:
 # ---------------------------------------------------------------------------
 
 class TestFixtureValidation:
-    """Validate that the implementation reproduces the expected fixture outputs."""
+    """Check we match the locked-down fixture values exactly."""
 
     def test_historical_fixture(self, sample_returns):
         expected = pd.read_csv(os.path.join(FIXTURES, "expected_historical.csv"))

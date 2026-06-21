@@ -11,8 +11,9 @@ Planned enhancements and future development directions.
   ticker/CSV data ingestion, VaR surface computation, backtesting, and
   Monte Carlo path simulation. React + Vite + TypeScript frontend with
   summary cards, tabbed charts, and interactive data source selection.
-- **Phase 3 (up next)**: AWS deployment - Terraform, Lambda, CloudFront,
-  GitHub Actions CI/CD.
+- **Phase 3 (complete)**: AWS deployment - Terraform infrastructure
+  (Lambda, API Gateway, S3, CloudFront) and GitHub Actions CI/CD pipeline
+  with automated testing of all reference implementations.
 
 The current implementation covers single-asset VaR. The items below
 extend it to portfolio-level risk and richer dynamics.

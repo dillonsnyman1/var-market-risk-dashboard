@@ -168,11 +168,12 @@ ticker data (via Yahoo Finance) and user-uploaded CSV files. Runs locally
 with no cloud dependencies. See [`backend/`](backend/) and
 [`frontend/`](frontend/).
 
-### Phase 3: AWS deployment *(up next)*
+### Phase 3: AWS deployment *(complete)*
 
 Terraform infrastructure (Lambda, API Gateway, S3, CloudFront) and a
 GitHub Actions CI/CD pipeline - same architecture as the other projects
-in this portfolio. Deployed automatically on every push to `main`.
+in this portfolio. Deployed automatically on every push to `main`. See
+[`infra/`](infra/) and [`.github/workflows/`](.github/workflows/).
 
 ### Future: Multi-asset portfolio expansion
 

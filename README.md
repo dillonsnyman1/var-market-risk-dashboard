@@ -10,10 +10,9 @@ backtesting and Monte Carlo path simulation.
 - **Frontend**: React + Vite + TypeScript dashboard (VaR surface, return
   distribution, Monte Carlo paths, backtesting)
 
-> **Live demo**: *Coming soon - AWS deployment (Phase 3) is up next.*
+> **Live demo**: [d2uqhhzh5eunz2.cloudfront.net](https://d2uqhhzh5eunz2.cloudfront.net) - try loading different tickers, uploading a CSV, or exploring the backtesting and Monte Carlo tabs.
 >
-> The backend is fully stateless: all VaR computation is done in-request
-> with no database or storage of any kind.
+> The backend is fully stateless: all VaR computation is done in-request with no database or storage of any kind.
 
 > **Disclaimer**: Simplified demo built for portfolio purposes. Not a
 > production risk system and should not be used for regulatory reporting or

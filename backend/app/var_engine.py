@@ -238,3 +238,197 @@ def backtest(
         "expected_breach_rate": 1 - confidence,
         "kupiec_p_value": kupiec_test(n, n_breaches, confidence),
     }
+
+
+# ---------------------------------------------------------------------------
+# Portfolio VaR
+# ---------------------------------------------------------------------------
+
+def _align_returns(asset_returns: list[np.ndarray]) -> np.ndarray:
+    """Truncate all series to the length of the shortest one so they line up."""
+    min_len = min(len(r) for r in asset_returns)
+    return np.column_stack([r[-min_len:] for r in asset_returns])
+
+
+def compute_portfolio_returns(
+    asset_returns: list[np.ndarray], weights: np.ndarray
+) -> np.ndarray:
+    """Weighted sum of individual asset returns."""
+    aligned = _align_returns(asset_returns)
+    return aligned @ weights
+
+
+def compute_correlation_matrix(asset_returns: list[np.ndarray]) -> np.ndarray:
+    aligned = _align_returns(asset_returns)
+    return np.corrcoef(aligned, rowvar=False)
+
+
+def compute_covariance_matrix(asset_returns: list[np.ndarray]) -> np.ndarray:
+    aligned = _align_returns(asset_returns)
+    cov = np.cov(aligned, rowvar=False, ddof=1)
+    # np.cov returns a scalar for a single series - force it to 2D
+    return np.atleast_2d(cov)
+
+
+# ---------------------------------------------------------------------------
+# Portfolio VaR - three methods
+# ---------------------------------------------------------------------------
+
+def portfolio_var_historical(
+    asset_returns: list[np.ndarray],
+    weights: np.ndarray,
+    confidence: float,
+    holding_period: int,
+) -> tuple[float, float]:
+    """Historical VaR on the portfolio return series."""
+    port_returns = compute_portfolio_returns(asset_returns, weights)
+    return var_historical(port_returns, confidence, holding_period)
+
+
+def portfolio_var_parametric(
+    asset_returns: list[np.ndarray],
+    weights: np.ndarray,
+    confidence: float,
+    holding_period: int,
+) -> tuple[float, float]:
+    """Parametric VaR using the full covariance matrix.
+    sigma_p = sqrt(w^T * Sigma * w), then standard normal VaR formula.
+    """
+    port_returns = compute_portfolio_returns(asset_returns, weights)
+    mu_p = port_returns.mean()
+    cov = compute_covariance_matrix(asset_returns)
+    sigma_p = float(np.sqrt(weights @ cov @ weights))
+
+    z = norm.ppf(confidence)
+    h = holding_period
+    alpha = 1 - confidence
+
+    var_val = float(-(mu_p * h - z * sigma_p * np.sqrt(h)))
+    cvar_val = float(-(mu_p * h - sigma_p * np.sqrt(h) * norm.pdf(z) / alpha))
+    return var_val, cvar_val
+
+
+def portfolio_var_monte_carlo(
+    asset_returns: list[np.ndarray],
+    weights: np.ndarray,
+    confidence: float,
+    holding_period: int,
+    n_simulations: int = 10_000,
+    seed: int = 42,
+) -> tuple[float, float]:
+    """MC VaR with correlated draws via Cholesky decomposition."""
+    aligned = _align_returns(asset_returns)
+    n_assets = aligned.shape[1]
+    mu = aligned.mean(axis=0)
+    cov = np.cov(aligned, rowvar=False, ddof=1)
+
+    # Cholesky factor for generating correlated normals
+    L = np.linalg.cholesky(cov)
+
+    dt = holding_period
+    drift = (mu - 0.5 * np.diag(cov)) * dt
+
+    rng = np.random.default_rng(seed)
+    Z = rng.standard_normal((n_simulations, n_assets))
+    correlated_Z = Z @ L.T
+    sim_asset_returns = drift + correlated_Z * np.sqrt(dt)
+
+    sim_portfolio_returns = sim_asset_returns @ weights
+
+    var_val = float(-np.percentile(sim_portfolio_returns, (1 - confidence) * 100))
+    tail = sim_portfolio_returns[sim_portfolio_returns <= -var_val]
+    cvar_val = float(-tail.mean()) if len(tail) > 0 else var_val
+
+    return var_val, cvar_val
+
+
+# ---------------------------------------------------------------------------
+# Portfolio VaR surface
+# ---------------------------------------------------------------------------
+
+def compute_portfolio_var_surface(
+    asset_returns: list[np.ndarray],
+    weights: np.ndarray,
+    confidences: list[float],
+    holding_periods: list[int],
+    n_simulations: int = 10_000,
+) -> list[dict]:
+    rows = []
+    for conf in confidences:
+        for hp in holding_periods:
+            vh, cvh = portfolio_var_historical(asset_returns, weights, conf, hp)
+            vp, cvp = portfolio_var_parametric(asset_returns, weights, conf, hp)
+            vm, cvm = portfolio_var_monte_carlo(asset_returns, weights, conf, hp, n_simulations)
+            rows.append({
+                "confidence": conf,
+                "holding_period": hp,
+                "var_historical": vh,
+                "cvar_historical": cvh,
+                "var_parametric": vp,
+                "cvar_parametric": cvp,
+                "var_monte_carlo": vm,
+                "cvar_monte_carlo": cvm,
+            })
+    return rows
+
+
+# ---------------------------------------------------------------------------
+# Risk decomposition (parametric, 1-day)
+# ---------------------------------------------------------------------------
+
+def compute_component_var(
+    asset_returns: list[np.ndarray],
+    weights: np.ndarray,
+    confidence: float = 0.95,
+) -> list[float]:
+    """Component VaR for each asset. Sums to total portfolio parametric VaR.
+    Uses the same mu-inclusive formula as portfolio_var_parametric so the
+    numbers actually add up."""
+    port_returns = compute_portfolio_returns(asset_returns, weights)
+    mu_p = port_returns.mean()
+    cov = compute_covariance_matrix(asset_returns)
+    sigma_p = float(np.sqrt(weights @ cov @ weights))
+    z = norm.ppf(confidence)
+
+    port_var = -(mu_p - z * sigma_p)
+
+    # each asset's share of portfolio variance, scaled to VaR
+    var_contributions = weights * (cov @ weights)  # w_i * (Sigma @ w)_i
+    pct_contributions = var_contributions / (sigma_p ** 2)
+    return (pct_contributions * port_var).tolist()
+
+
+def compute_marginal_var(
+    asset_returns: list[np.ndarray],
+    weights: np.ndarray,
+    confidence: float = 0.95,
+) -> list[float]:
+    """Marginal VaR: sensitivity of portfolio VaR to a small weight increase."""
+    cov = compute_covariance_matrix(asset_returns)
+    sigma_p = float(np.sqrt(weights @ cov @ weights))
+    z = norm.ppf(confidence)
+    return ((cov @ weights) / sigma_p * z).tolist()
+
+
+def compute_incremental_var(
+    asset_returns: list[np.ndarray],
+    weights: np.ndarray,
+    confidence: float = 0.95,
+) -> list[float]:
+    """Incremental VaR: portfolio VaR with vs without each asset."""
+    port_var, _ = portfolio_var_parametric(asset_returns, weights, confidence, 1)
+    n_assets = len(asset_returns)
+    result = []
+    for i in range(n_assets):
+        if weights[i] == 0:
+            result.append(0.0)
+            continue
+        # remove asset i and renormalize remaining weights
+        w_ex = weights.copy()
+        w_ex[i] = 0.0
+        w_sum = w_ex.sum()
+        if w_sum > 0:
+            w_ex = w_ex / w_sum
+        var_ex, _ = portfolio_var_parametric(asset_returns, w_ex, confidence, 1)
+        result.append(port_var - var_ex)
+    return result

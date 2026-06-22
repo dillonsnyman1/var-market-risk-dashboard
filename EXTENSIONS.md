@@ -15,8 +15,12 @@ Planned enhancements and future development directions.
   (Lambda, API Gateway, S3, CloudFront) and GitHub Actions CI/CD pipeline
   with automated testing of all reference implementations.
 
-The current implementation covers single-asset VaR. The items below
-extend it to portfolio-level risk and richer dynamics.
+- **Multi-asset portfolio VaR (in progress)**: Portfolio engine with
+  correlated Monte Carlo (Cholesky), parametric VaR via covariance
+  matrix, and risk decomposition (component, marginal, incremental VaR).
+  Backend engine and tests done - API endpoints and frontend next.
+
+The items below track the remaining planned work.
 
 ---
 

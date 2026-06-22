@@ -174,11 +174,13 @@ GitHub Actions CI/CD pipeline - same architecture as the other projects
 in this portfolio. Deployed automatically on every push to `main`. See
 [`infra/`](infra/) and [`.github/workflows/`](.github/workflows/).
 
-### Future: Multi-asset portfolio expansion
+### Multi-asset portfolio expansion *(in progress)*
 
-Portfolio VaR with correlation modelling, component/marginal VaR
-decomposition, diversification benefit analysis, stress testing, and
-conditional volatility (GARCH). Tracked in [EXTENSIONS.md](EXTENSIONS.md).
+Portfolio VaR with correlation modelling (covariance matrix), correlated
+Monte Carlo via Cholesky decomposition, and risk decomposition
+(component, marginal, incremental VaR). Backend engine and tests are
+done - API endpoints and frontend integration are next. Tracked in
+[EXTENSIONS.md](EXTENSIONS.md).
 
 ---
 

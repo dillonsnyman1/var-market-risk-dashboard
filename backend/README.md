@@ -12,13 +12,23 @@ in-request.
 | `POST` | `/api/var` | Compute full VaR/CVaR surface across methods, confidences, horizons |
 | `POST` | `/api/backtest` | Rolling-window backtest with Kupiec POF test |
 | `POST` | `/api/monte-carlo-paths` | Simulate GBM price paths for visualisation |
+| `POST` | `/api/portfolio-tickers` | Fetch multiple tickers, align on shared trading dates |
+| `POST` | `/api/portfolio-var` | Portfolio VaR surface + correlation + risk decomposition |
 | `GET`  | `/api/health` | Health check |
 
 ## Data flow
 
-The ticker and upload endpoints return raw log returns to the frontend.
-The frontend then sends those returns to the computation endpoints as
-needed. Nothing is stored server-side between requests.
+**Single asset:** The ticker and upload endpoints return raw log returns
+to the frontend. The frontend then sends those returns to the
+computation endpoints as needed.
+
+**Portfolio:** The portfolio-tickers endpoint fetches multiple tickers,
+aligns them on shared trading dates (inner join), and returns per-asset
+return series. The frontend passes these to portfolio-var, which
+computes the full VaR surface, correlation matrix, and component/
+marginal/incremental VaR decomposition.
+
+Nothing is stored server-side between requests.
 
 ## Running locally
 

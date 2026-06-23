@@ -101,3 +101,54 @@ class MonteCarloPathsResponse(BaseModel):
     var_95: float
     var_99: float
     terminal_returns: list[float]
+
+
+# ---------------------------------------------------------------------------
+# Portfolio request/response models
+# ---------------------------------------------------------------------------
+
+class PortfolioAsset(BaseModel):
+    ticker: str = Field(description="Yahoo Finance ticker symbol")
+    weight: float = Field(ge=0, le=1, description="Portfolio weight (0-1)")
+
+
+class PortfolioTickerRequest(BaseModel):
+    assets: list[PortfolioAsset] = Field(min_length=2)
+    period: str = Field(default="2y")
+
+
+class PortfolioTickerResponse(BaseModel):
+    tickers: list[str]
+    asset_returns: list[list[float]]
+    dates: list[str]
+    weights: list[float]
+
+
+class PortfolioVarRequest(BaseModel):
+    asset_returns: list[list[float]] = Field(description="One return series per asset")
+    weights: list[float]
+    tickers: list[str]
+    confidences: list[float] = Field(default=[0.90, 0.95, 0.99])
+    holding_periods: list[int] = Field(default=[1, 5, 10])
+    n_simulations: int = Field(default=10_000, ge=1_000, le=100_000)
+
+
+class ComponentVarBreakdown(BaseModel):
+    ticker: str
+    weight: float
+    standalone_var: float
+    component_var: float
+    marginal_var: float
+    incremental_var: float
+    pct_contribution: float
+
+
+class PortfolioVarResponse(BaseModel):
+    stats: ReturnStats
+    var_surface: list[VarResult]
+    distribution: ReturnDistribution
+    correlation_matrix: list[list[float]]
+    tickers: list[str]
+    weights: list[float]
+    component_breakdown: list[ComponentVarBreakdown]
+    diversification_benefit: float
